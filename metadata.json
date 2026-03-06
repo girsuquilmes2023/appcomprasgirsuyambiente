@@ -1,0 +1,7 @@
+{
+  "name": "APP Control Compras GIRSU y Ambiente...",
+  "description": "Sistema de gestión de stock, personal e indumentaria para Quilmes Gestión.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
