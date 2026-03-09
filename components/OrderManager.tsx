@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { PurchaseOrder, Provider, Item, Category, User } from '../types';
 import { ShoppingCart, Plus, Search, Filter, FileText, CheckCircle2, Clock, XCircle, Trash2, ArrowRight, Download, Scan, Loader2, Upload, DollarSign, Package, Printer, Edit2, FileDown } from 'lucide-react';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -176,64 +176,93 @@ export const OrderManager: React.FC<OrderManagerProps> = ({
 
     setIsScanning(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64Data = (reader.result as string).split(',')[1];
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("La clave de API de Gemini no está configurada.");
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [
+          {
+            parts: [
+              { inlineData: { data: base64Data, mimeType: file.type } },
+              { text: "Extrae la información de este documento de FloQui/Expediente. Identifica el número de expediente, el nombre del proveedor, el monto total y la lista de items con su descripción, cantidad y precio unitario." }
+            ]
+          }
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              orderNumber: { type: Type.STRING, description: "Número de expediente (ej: EX-202X-XXXXXX-MUN-Q)" },
+              providerName: { type: Type.STRING, description: "Nombre del proveedor" },
+              totalAmount: { type: Type.NUMBER, description: "Monto total del expediente" },
+              items: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    description: { type: Type.STRING },
+                    quantity: { type: Type.NUMBER },
+                    price: { type: Type.NUMBER }
+                  },
+                  required: ["description", "quantity", "price"]
+                }
+              }
+            },
+            required: ["orderNumber", "providerName", "totalAmount", "items"]
+          }
+        }
+      });
+
+      const data = JSON.parse(response.text || '{}');
+
+      // Try to match provider
+      const matchedProvider = providers.find(p => {
+        const pName = p.name?.toLowerCase() || '';
+        const dName = data.providerName?.toLowerCase() || '';
+        return pName.includes(dName) || dName.includes(pName);
+      });
+
+      // Map items to internal format and try to match with existing items
+      const mappedItems = (data.items || []).map((item: any) => {
+        const matchedItem = items.find(i => {
+          const iName = i.name?.toLowerCase() || '';
+          const dDesc = item.description?.toLowerCase() || '';
+          return iName.includes(dDesc) || dDesc.includes(iName);
+        });
         
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: [
-            {
-              parts: [
-                { inlineData: { data: base64Data, mimeType: file.type } },
-                { text: "Extract the following information from this document: 1. Expediente Number (format like EX-202X-XXXXXX-MUN-Q), 2. Provider Name, 3. Total Amount, 4. List of items (description, quantity, unit price). Return ONLY a JSON object with keys: orderNumber, providerName, totalAmount, items (array of {description, quantity, price})." }
-              ]
-            }
-          ]
-        });
+        return {
+          itemId: matchedItem?.id || 'manual-item',
+          description: item.description,
+          quantity: Number(item.quantity) || 1,
+          price: Number(item.price) || 0
+        };
+      });
 
-        const text = response.text || '{}';
-        const cleanJson = text.replace(/```json|```/g, '').trim();
-        const data = JSON.parse(cleanJson);
-
-        // Try to match provider
-        const matchedProvider = providers.find(p => {
-          const pName = p.name?.toLowerCase() || '';
-          const dName = data.providerName?.toLowerCase() || '';
-          return pName.includes(dName) || dName.includes(pName);
-        });
-
-        // Map items to internal format and try to match with existing items
-        const mappedItems = (data.items || []).map((item: any) => {
-          const matchedItem = items.find(i => {
-            const iName = i.name?.toLowerCase() || '';
-            const dDesc = item.description?.toLowerCase() || '';
-            return iName.includes(dDesc) || dDesc.includes(iName);
-          });
-          
-          return {
-            itemId: matchedItem?.id || 'manual-item',
-            description: item.description,
-            quantity: Number(item.quantity) || 1,
-            price: Number(item.price) || 0
-          };
-        });
-
-        setNewOrder(prev => ({
-          ...prev,
-          orderNumber: data.orderNumber || prev.orderNumber,
-          providerId: matchedProvider?.id || prev.providerId,
-          totalCost: data.totalAmount || prev.totalCost,
-          items: mappedItems
-        }));
-        
-        setIsAdding(true);
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
+      setNewOrder(prev => ({
+        ...prev,
+        orderNumber: data.orderNumber || prev.orderNumber,
+        providerId: matchedProvider?.id || prev.providerId,
+        totalCost: data.totalAmount || prev.totalCost,
+        items: mappedItems
+      }));
+      
+      setIsAdding(true);
+    } catch (error: any) {
       console.error("Error scanning document:", error);
-      alert("Error al escanear el documento. Por favor, intente manualmente.");
+      alert(`Error al escanear: ${error.message || "Error desconocido"}`);
     } finally {
       setIsScanning(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
