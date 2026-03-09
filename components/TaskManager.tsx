@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Task, User } from '../types';
-import { ListTodo, Plus, Search, Filter, Clock, CheckCircle2, AlertCircle, Trash2, XCircle, ArrowRight, Calendar, Printer, FileDown, Settings } from 'lucide-react';
+import { ListTodo, Plus, Search, Filter, Clock, CheckCircle2, AlertCircle, Trash2, XCircle, ArrowRight, Calendar, Printer, FileDown, Settings, Eye } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -17,6 +17,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
@@ -152,15 +153,19 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredTasks.map(task => (
-          <div key={task.id} className="bg-white rounded-[2.5rem] border border-slate-100 shadow-soft p-8 flex flex-col justify-between group hover:border-[#6a4782]/30 transition-all">
+          <div 
+            key={task.id} 
+            onClick={() => setSelectedTask(task)}
+            className="bg-white rounded-[2.5rem] border border-slate-100 shadow-soft p-8 flex flex-col justify-between group hover:border-[#6a4782]/30 transition-all cursor-pointer"
+          >
             <div className="space-y-4">
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-2">
                   {getStatusIcon(task.status)}
                   <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">{getStatusLabel(task.status)}</span>
                 </div>
-                <span className="text-[9px] font-black text-slate-300 uppercase tabular-nums flex items-center gap-1">
-                  <Calendar size={10}/> {new Date(task.dueDate).toLocaleDateString('es-AR')}
+                <span className="text-xs font-black text-slate-400 uppercase tabular-nums flex items-center gap-1">
+                  <Calendar size={12}/> {new Date(task.dueDate).toLocaleDateString('es-AR')}
                 </span>
               </div>
               <div className="space-y-2">
@@ -169,7 +174,14 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-8">
+            <div className="flex items-center gap-2 pt-8" onClick={e => e.stopPropagation()}>
+              <button 
+                onClick={() => setSelectedTask(task)}
+                className="p-3 bg-slate-50 hover:bg-indigo-50 hover:text-[#6a4782] rounded-xl text-slate-200 transition-all"
+                title="Ver detalles"
+              >
+                <Eye size={14}/>
+              </button>
               {user.role !== 'VIEWER' && (
                 <>
                   {task.status !== 'COMPLETED' && (
@@ -328,6 +340,47 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 className="px-8 py-5 border border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition-all italic"
               >
                 Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedTask && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 shadow-2xl animate-slide-up border border-slate-100">
+            <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center gap-3">
+                {getStatusIcon(selectedTask.status)}
+                <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">{selectedTask.title}</h3>
+              </div>
+              <button onClick={() => setSelectedTask(null)} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400"><XCircle size={24}/></button>
+            </div>
+
+            <div className="space-y-8">
+              <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100">
+                <label className="text-[10px] font-black text-[#6a4782] uppercase tracking-widest block mb-4 italic">Descripción Detallada</label>
+                <p className="text-sm font-bold text-slate-700 uppercase italic leading-relaxed whitespace-pre-wrap">{selectedTask.description || 'SIN DESCRIPCIÓN ADICIONAL'}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 italic">Estado Actual</label>
+                  <p className="text-xs font-black text-slate-900 uppercase italic">{getStatusLabel(selectedTask.status)}</p>
+                </div>
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 italic">Fecha Límite</label>
+                  <p className="text-xs font-black text-slate-900 uppercase italic">{new Date(selectedTask.dueDate).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-10">
+              <button 
+                onClick={() => setSelectedTask(null)}
+                className="w-full bg-[#6a4782] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition-all italic"
+              >
+                Cerrar Detalle
               </button>
             </div>
           </div>
