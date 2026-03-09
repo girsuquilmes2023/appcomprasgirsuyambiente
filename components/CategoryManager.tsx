@@ -15,6 +15,7 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({ categories, pr
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  const [editingSub, setEditingSub] = useState<{catId: string, sub: SubCategory} | null>(null);
   
   const [newCategory, setNewCategory] = useState<Partial<Category>>({
     name: '',
@@ -78,6 +79,13 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({ categories, pr
     setNewCategory({ name: '', code: '', programId: programs[0]?.id, subCategories: [] });
   };
 
+  const handleEditCategory = () => {
+    if (!editingCategory || !editingCategory.name || !editingCategory.code) return;
+    const updated = categories.map(c => c.id === editingCategory.id ? editingCategory : c);
+    onUpdateCategories(updated);
+    setEditingCategory(null);
+  };
+
   const handleDeleteCategory = (id: string) => {
     if (window.confirm('¿Eliminar esta partida y todas sus subpartidas?')) {
       onUpdateCategories(categories.filter(c => c.id !== id));
@@ -102,6 +110,21 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({ categories, pr
     onUpdateCategories(updated);
     setIsAddingSub(null);
     setNewSub({ name: '', code: '', limit: 0, spent: 0 });
+  };
+
+  const handleEditSubCategory = () => {
+    if (!editingSub || !editingSub.sub.name || !editingSub.sub.code) return;
+    const updated = categories.map(c => {
+      if (c.id === editingSub.catId) {
+        return {
+          ...c,
+          subCategories: (c.subCategories || []).map(s => s.id === editingSub.sub.id ? editingSub.sub : s)
+        };
+      }
+      return c;
+    });
+    onUpdateCategories(updated);
+    setEditingSub(null);
   };
 
   const handleDeleteSub = (catId: string, subId: string) => {
@@ -162,12 +185,20 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({ categories, pr
                   </p>
                 </div>
                 {user.role !== 'VIEWER' && (
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id); }}
-                    className="p-2 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                  >
-                    <Trash2 size={18}/>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setEditingCategory(cat); }}
+                      className="p-2 text-slate-200 hover:text-[#6a4782] hover:bg-indigo-50 rounded-xl transition-all"
+                    >
+                      <Edit3 size={18}/>
+                    </button>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id); }}
+                      className="p-2 text-slate-200 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                    >
+                      <Trash2 size={18}/>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -195,12 +226,20 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({ categories, pr
                         <p className="text-[10px] font-black text-[#21b524] mt-1">{formatCurrency(sub.limit)}</p>
                       </div>
                       {user.role !== 'VIEWER' && (
-                        <button 
-                          onClick={() => handleDeleteSub(cat.id, sub.id)}
-                          className="p-2 text-slate-100 group-hover:text-red-400 transition-all"
-                        >
-                          <Trash2 size={14}/>
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => setEditingSub({ catId: cat.id, sub: sub })}
+                            className="p-2 text-slate-100 group-hover:text-[#6a4782] transition-all"
+                          >
+                            <Edit3 size={14}/>
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteSub(cat.id, sub.id)}
+                            className="p-2 text-slate-100 group-hover:text-red-400 transition-all"
+                          >
+                            <Trash2 size={14}/>
+                          </button>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -312,6 +351,124 @@ export const CategoryManager: React.FC<CategoryManagerProps> = ({ categories, pr
               </button>
               <button 
                 onClick={() => setIsAddingCategory(false)}
+                className="px-8 py-5 border border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition-all italic"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingCategory && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-2xl animate-slide-up border border-slate-100">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">Editar Partida</h3>
+              <button onClick={() => setEditingCategory(null)} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400"><XCircle size={24}/></button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Programa rAFAM</label>
+                <select 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  value={editingCategory.programId}
+                  onChange={e => setEditingCategory({...editingCategory, programId: e.target.value})}
+                >
+                  {programs.map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Código de Partida</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  placeholder="X.X.X.X"
+                  value={editingCategory.code}
+                  onChange={e => setEditingCategory({...editingCategory, code: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Nombre de la Partida</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  placeholder="EJ: SERVICIOS BÁSICOS"
+                  value={editingCategory.name}
+                  onChange={e => setEditingCategory({...editingCategory, name: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="mt-10 flex gap-4">
+              <button 
+                onClick={handleEditCategory}
+                className="flex-1 bg-[#6a4782] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition-all italic"
+              >
+                Guardar Cambios
+              </button>
+              <button 
+                onClick={() => setEditingCategory(null)}
+                className="px-8 py-5 border border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition-all italic"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingSub && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-2xl animate-slide-up border border-slate-100">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">Editar Subpartida</h3>
+              <button onClick={() => setEditingSub(null)} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400"><XCircle size={24}/></button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Código</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  placeholder="X.X.X.X"
+                  value={editingSub.sub.code}
+                  onChange={e => setEditingSub({...editingSub, sub: {...editingSub.sub, code: e.target.value}})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Nombre</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  placeholder="Nombre de subpartida"
+                  value={editingSub.sub.name}
+                  onChange={e => setEditingSub({...editingSub, sub: {...editingSub.sub, name: e.target.value}})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Monto Límite</label>
+                <input 
+                  type="number" 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  placeholder="0"
+                  value={editingSub.sub.limit}
+                  onChange={e => setEditingSub({...editingSub, sub: {...editingSub.sub, limit: Number(e.target.value)}})}
+                />
+              </div>
+            </div>
+
+            <div className="mt-10 flex gap-4">
+              <button 
+                onClick={handleEditSubCategory}
+                className="flex-1 bg-[#6a4782] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition-all italic"
+              >
+                Guardar Cambios
+              </button>
+              <button 
+                onClick={() => setEditingSub(null)}
                 className="px-8 py-5 border border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition-all italic"
               >
                 Cancelar

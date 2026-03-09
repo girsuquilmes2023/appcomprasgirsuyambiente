@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Item, Category, Budget, ViewState, User, Task, PurchaseOrder, Contract, Provider } from '../types';
+import { Item, Category, Budget, ViewState, User, Task, PurchaseOrder, Contract, Provider, Staff } from '../types';
 import { ShieldCheck, ShoppingCart, Wallet, Package, Activity, Truck, Bell, ArrowRight, Printer, FileDown } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -13,12 +13,13 @@ interface DashboardProps {
   orders?: PurchaseOrder[];
   contracts?: Contract[];
   providers?: Provider[];
+  staff?: Staff[];
   user: User;
   onNavigate: (view: ViewState) => void; 
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
-  items, categories, budget, tasks = [], orders = [], providers = [], onNavigate
+  items, categories, budget, tasks = [], orders = [], providers = [], staff = [], onNavigate
 }) => {
   const formatCurrency = (val: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
 
@@ -30,7 +31,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     }, 0);
 
     const lowStockItems = items.filter(i => i.quantity <= i.minStock);
-    const pendingTasksList = tasks.filter(t => t.status === 'PENDING');
+    const pendingTasksList = tasks.filter(t => t.status === 'PENDING' || t.status === 'IN_PROGRESS');
     
     const rafamOrders = orders.filter(o => o.status === 'RAFAM');
     const spentAmount = rafamOrders.reduce((acc, o) => acc + o.totalCost, 0);
@@ -52,6 +53,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
         const diffTime = end.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return { name: p.name, days: diffDays };
+    });
+
+    const taskAlerts = pendingTasksList.map(t => {
+      const assignedAgent = staff.find(s => s.id === t.assignedTo)?.name || 'Sin asignar';
+      return { ...t, agentName: assignedAgent };
     });
 
     const chartData = [
@@ -85,9 +91,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
       chartData,
       availableAmount,
       providerAlerts,
+      taskAlerts,
       categoriesWithExpenses
     };
-  }, [items, tasks, budget, orders, categories, providers]);
+  }, [items, tasks, budget, orders, categories, providers, staff]);
 
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
@@ -178,6 +185,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             </p>
                         </div>
                         <button onClick={() => onNavigate('PROVIDERS')} className="p-2 text-orange-400 hover:text-orange-600 transition-colors">
+                            <ArrowRight size={20}/>
+                        </button>
+                    </div>
+                ))}
+            </div>
+          </div>
+      )}
+
+      {stats.taskAlerts.length > 0 && (
+          <div className="bg-indigo-50 border-2 border-indigo-200 rounded-[2.5rem] p-8 shadow-lg shadow-indigo-100">
+            <div className="flex items-center gap-4 mb-6">
+                <div className="bg-[#6a4782] p-3 rounded-2xl text-white shadow-lg"><Activity size={24}/></div>
+                <div>
+                    <h2 className="text-xl font-black text-indigo-900 uppercase tracking-tighter leading-none italic">Misiones Críticas</h2>
+                    <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mt-1 italic">Seguimiento de tareas pendientes y agentes asignados</p>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {stats.taskAlerts.slice(0, 3).map((task, idx) => (
+                    <div key={idx} className="bg-white/80 backdrop-blur-sm p-5 rounded-2xl border border-indigo-200 flex justify-between items-center group hover:bg-white transition-all">
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-black text-slate-900 uppercase truncate italic">{task.title}</p>
+                            <p className="text-[9px] font-black text-indigo-600 uppercase mt-1">
+                                Agente: <span className="text-slate-900">{task.agentName}</span>
+                            </p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5 truncate">{task.description}</p>
+                        </div>
+                        <button onClick={() => onNavigate('TASKS')} className="p-2 text-indigo-400 hover:text-[#6a4782] transition-colors">
                             <ArrowRight size={20}/>
                         </button>
                     </div>

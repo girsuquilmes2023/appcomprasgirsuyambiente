@@ -20,6 +20,9 @@ export const FleetManager: React.FC<FleetManagerProps> = ({
   vehicles, maintenance, fuelLogs, user, onAddVehicle, onUpdateVehicle, onDeleteVehicle, onAddMaintenance, onAddFuel 
 }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [maintenanceVehicle, setMaintenanceVehicle] = useState<Vehicle | null>(null);
+  const [fuelVehicle, setFuelVehicle] = useState<Vehicle | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const jsonInputRef = useRef<HTMLInputElement>(null);
@@ -83,6 +86,58 @@ export const FleetManager: React.FC<FleetManagerProps> = ({
     onAddVehicle(vehicle);
     setIsAdding(false);
     setNewVehicle({ plate: '', model: '', type: 'Compactador', status: 'Operativo', mileage: 0 });
+  };
+
+  const handleEditVehicle = () => {
+    if (!editingVehicle || !editingVehicle.plate || !editingVehicle.model) return;
+    onUpdateVehicle(editingVehicle);
+    setEditingVehicle(null);
+  };
+
+  const [newMaintenance, setNewMaintenance] = useState<Partial<MaintenanceRecord>>({
+    description: '',
+    cost: 0,
+    date: new Date().toISOString().split('T')[0]
+  });
+
+  const handleAddMaintenanceRecord = () => {
+    if (!maintenanceVehicle || !newMaintenance.description) return;
+    const record: MaintenanceRecord = {
+      id: Math.random().toString(36).substr(2, 9),
+      vehicleId: maintenanceVehicle.id,
+      date: newMaintenance.date || new Date().toISOString().split('T')[0],
+      description: newMaintenance.description!,
+      cost: Number(newMaintenance.cost) || 0
+    };
+    onAddMaintenance(record);
+    onUpdateVehicle({ ...maintenanceVehicle, status: 'En Taller' });
+    setMaintenanceVehicle(null);
+    setNewMaintenance({ description: '', cost: 0, date: new Date().toISOString().split('T')[0] });
+  };
+
+  const [newFuel, setNewFuel] = useState<Partial<FuelLog>>({
+    liters: 0,
+    cost: 0,
+    mileage: 0,
+    date: new Date().toISOString().split('T')[0]
+  });
+
+  const handleAddFuelRecord = () => {
+    if (!fuelVehicle || !newFuel.liters) return;
+    const record: FuelLog = {
+      id: Math.random().toString(36).substr(2, 9),
+      vehicleId: fuelVehicle.id,
+      date: newFuel.date || new Date().toISOString().split('T')[0],
+      liters: Number(newFuel.liters) || 0,
+      cost: Number(newFuel.cost) || 0,
+      mileage: Number(newFuel.mileage) || fuelVehicle.mileage
+    };
+    onAddFuel(record);
+    if (record.mileage > fuelVehicle.mileage) {
+      onUpdateVehicle({ ...fuelVehicle, mileage: record.mileage });
+    }
+    setFuelVehicle(null);
+    setNewFuel({ liters: 0, cost: 0, mileage: 0, date: new Date().toISOString().split('T')[0] });
   };
 
   const handleImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -250,11 +305,23 @@ export const FleetManager: React.FC<FleetManagerProps> = ({
             <div className="flex items-center gap-2 pt-2">
               {user.role !== 'VIEWER' && (
                 <>
-                  <button className="flex-1 bg-slate-50 hover:bg-[#6a4782] hover:text-white p-3 rounded-xl text-slate-400 transition-all flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest">
+                  <button 
+                    onClick={() => setMaintenanceVehicle(vehicle)}
+                    className="flex-1 bg-slate-50 hover:bg-[#6a4782] hover:text-white p-3 rounded-xl text-slate-400 transition-all flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest"
+                  >
                     <Wrench size={14}/> Taller
                   </button>
-                  <button className="flex-1 bg-slate-50 hover:bg-[#21b524] hover:text-white p-3 rounded-xl text-slate-400 transition-all flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest">
+                  <button 
+                    onClick={() => setFuelVehicle(vehicle)}
+                    className="flex-1 bg-slate-50 hover:bg-[#21b524] hover:text-white p-3 rounded-xl text-slate-400 transition-all flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest"
+                  >
                     <Fuel size={14}/> Carga
+                  </button>
+                  <button 
+                    onClick={() => setEditingVehicle(vehicle)}
+                    className="p-3 bg-slate-50 hover:bg-indigo-50 hover:text-[#6a4782] rounded-xl text-slate-200 transition-all"
+                  >
+                    <Settings size={14}/>
                   </button>
                   <button 
                     onClick={() => onDeleteVehicle(vehicle.id)}
@@ -345,6 +412,186 @@ export const FleetManager: React.FC<FleetManagerProps> = ({
                 className="px-8 py-5 border border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition-all italic"
               >
                 Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingVehicle && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 shadow-2xl animate-slide-up border border-slate-100">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">Editar Vehículo</h3>
+              <button onClick={() => setEditingVehicle(null)} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400"><XCircle size={24}/></button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Patente</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  placeholder="AF-123-XY"
+                  value={editingVehicle.plate}
+                  onChange={e => setEditingVehicle({...editingVehicle, plate: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Modelo / Marca</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  placeholder="EJ: VOLKSWAGEN CONSTELLATION"
+                  value={editingVehicle.model}
+                  onChange={e => setEditingVehicle({...editingVehicle, model: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Tipo de Unidad</label>
+                <select 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  value={editingVehicle.type}
+                  onChange={e => setEditingVehicle({...editingVehicle, type: e.target.value})}
+                >
+                  <option value="Compactador">COMPACTADOR</option>
+                  <option value="Volcador">VOLCADOR</option>
+                  <option value="Roll-Off">ROLL-OFF</option>
+                  <option value="Pala Cargadora">PALA CARGADORA</option>
+                  <option value="Camioneta">CAMIONETA</option>
+                  <option value="Auto">AUTO</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Estado</label>
+                <select 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  value={editingVehicle.status}
+                  onChange={e => setEditingVehicle({...editingVehicle, status: e.target.value as any})}
+                >
+                  <option value="Operativo">OPERATIVO</option>
+                  <option value="En Taller">EN TALLER</option>
+                  <option value="Fuera de Servicio">FUERA DE SERVICIO</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Kilometraje Actual</label>
+                <input 
+                  type="number" 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  value={editingVehicle.mileage}
+                  onChange={e => setEditingVehicle({...editingVehicle, mileage: Number(e.target.value)})}
+                />
+              </div>
+            </div>
+
+            <div className="mt-10 flex gap-4">
+              <button 
+                onClick={handleEditVehicle}
+                className="flex-1 bg-[#6a4782] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition-all italic"
+              >
+                Guardar Cambios
+              </button>
+              <button 
+                onClick={() => setEditingVehicle(null)}
+                className="px-8 py-5 border border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition-all italic"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {maintenanceVehicle && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-2xl animate-slide-up border border-slate-100">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">Registrar Mantenimiento</h3>
+              <button onClick={() => setMaintenanceVehicle(null)} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400"><XCircle size={24}/></button>
+            </div>
+            <p className="text-[10px] font-black text-[#6a4782] uppercase tracking-widest mb-6">Unidad: {maintenanceVehicle.plate} - {maintenanceVehicle.model}</p>
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Descripción del Arreglo</label>
+                <textarea 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic min-h-[100px] resize-none"
+                  placeholder="EJ: CAMBIO DE ACEITE Y FILTROS"
+                  value={newMaintenance.description}
+                  onChange={e => setNewMaintenance({...newMaintenance, description: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Costo Aproximado</label>
+                <input 
+                  type="number" 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  value={newMaintenance.cost}
+                  onChange={e => setNewMaintenance({...newMaintenance, cost: Number(e.target.value)})}
+                />
+              </div>
+            </div>
+
+            <div className="mt-10 flex gap-4">
+              <button 
+                onClick={handleAddMaintenanceRecord}
+                className="flex-1 bg-[#6a4782] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition-all italic"
+              >
+                Registrar y Enviar a Taller
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fuelVehicle && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-md rounded-[3rem] p-10 shadow-2xl animate-slide-up border border-slate-100">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">Carga de Combustible</h3>
+              <button onClick={() => setFuelVehicle(null)} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400"><XCircle size={24}/></button>
+            </div>
+            <p className="text-[10px] font-black text-[#21b524] uppercase tracking-widest mb-6">Unidad: {fuelVehicle.plate} - {fuelVehicle.model}</p>
+
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Litros</label>
+                  <input 
+                    type="number" 
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                    value={newFuel.liters}
+                    onChange={e => setNewFuel({...newFuel, liters: Number(e.target.value)})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Costo</label>
+                  <input 
+                    type="number" 
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                    value={newFuel.cost}
+                    onChange={e => setNewFuel({...newFuel, cost: Number(e.target.value)})}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Kilometraje al Cargar</label>
+                <input 
+                  type="number" 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  value={newFuel.mileage || fuelVehicle.mileage}
+                  onChange={e => setNewFuel({...newFuel, mileage: Number(e.target.value)})}
+                />
+              </div>
+            </div>
+
+            <div className="mt-10 flex gap-4">
+              <button 
+                onClick={handleAddFuelRecord}
+                className="flex-1 bg-[#21b524] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition-all italic"
+              >
+                Registrar Carga
               </button>
             </div>
           </div>

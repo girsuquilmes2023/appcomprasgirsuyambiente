@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Task, User } from '../types';
-import { ListTodo, Plus, Search, Filter, Clock, CheckCircle2, AlertCircle, Trash2, XCircle, ArrowRight, Calendar, Printer, FileDown } from 'lucide-react';
+import { ListTodo, Plus, Search, Filter, Clock, CheckCircle2, AlertCircle, Trash2, XCircle, ArrowRight, Calendar, Printer, FileDown, Settings } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -16,6 +16,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
   tasks, user, onAddTask, onUpdateTask, onDeleteTask 
 }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
@@ -74,6 +75,12 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
     onAddTask(task);
     setIsAdding(false);
     setNewTask({ title: '', description: '', status: 'PENDING', dueDate: new Date().toISOString().split('T')[0] });
+  };
+
+  const handleEditTask = () => {
+    if (!editingTask || !editingTask.title) return;
+    onUpdateTask(editingTask);
+    setEditingTask(null);
   };
 
   const getStatusIcon = (status: string) => {
@@ -174,6 +181,12 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                     </button>
                   )}
                   <button 
+                    onClick={() => setEditingTask(task)}
+                    className="p-3 bg-slate-50 hover:bg-indigo-50 hover:text-[#6a4782] rounded-xl text-slate-200 transition-all"
+                  >
+                    <Settings size={14}/>
+                  </button>
+                  <button 
                     onClick={() => onDeleteTask(task.id)}
                     className="p-3 bg-slate-50 hover:bg-red-50 hover:text-red-500 rounded-xl text-slate-200 transition-all"
                   >
@@ -243,6 +256,75 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
               </button>
               <button 
                 onClick={() => setIsAdding(false)}
+                className="px-8 py-5 border border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition-all italic"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingTask && (
+        <div className="fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-white w-full max-w-2xl rounded-[3rem] p-10 shadow-2xl animate-slide-up border border-slate-100">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter italic">Editar Misión</h3>
+              <button onClick={() => setEditingTask(null)} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400"><XCircle size={24}/></button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Título de la Misión</label>
+                <input 
+                  type="text" 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  placeholder="EJ: REPARACIÓN DE COMPACTADOR V1"
+                  value={editingTask.title}
+                  onChange={e => setEditingTask({...editingTask, title: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Descripción / Detalles</label>
+                <textarea 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic min-h-[120px] resize-none"
+                  placeholder="DETALLE DE LA TAREA A REALIZAR..."
+                  value={editingTask.description}
+                  onChange={e => setEditingTask({...editingTask, description: e.target.value})}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Estado</label>
+                <select 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold uppercase outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  value={editingTask.status}
+                  onChange={e => setEditingTask({...editingTask, status: e.target.value as any})}
+                >
+                  <option value="PENDING">PENDIENTE</option>
+                  <option value="IN_PROGRESS">EN PROCESO</option>
+                  <option value="COMPLETED">FINALIZADA</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Fecha Límite</label>
+                <input 
+                  type="date" 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-sm font-bold outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                  value={editingTask.dueDate}
+                  onChange={e => setEditingTask({...editingTask, dueDate: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="mt-10 flex gap-4">
+              <button 
+                onClick={handleEditTask}
+                className="flex-1 bg-[#6a4782] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition-all italic"
+              >
+                Guardar Cambios
+              </button>
+              <button 
+                onClick={() => setEditingTask(null)}
                 className="px-8 py-5 border border-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-50 transition-all italic"
               >
                 Cancelar
