@@ -10,14 +10,26 @@ interface TaskManagerProps {
   onAddTask: (t: Task) => void;
   onUpdateTask: (t: Task) => void;
   onDeleteTask: (id: string) => void;
+  initialSelectedTaskId?: string | null;
+  onClearSelectedTask?: () => void;
 }
 
 export const TaskManager: React.FC<TaskManagerProps> = ({ 
-  tasks, user, onAddTask, onUpdateTask, onDeleteTask 
+  tasks, user, onAddTask, onUpdateTask, onDeleteTask, initialSelectedTaskId, onClearSelectedTask
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  React.useEffect(() => {
+    if (initialSelectedTaskId) {
+      const task = tasks.find(t => t.id === initialSelectedTaskId);
+      if (task) {
+        setSelectedTask(task);
+        onClearSelectedTask?.();
+      }
+    }
+  }, [initialSelectedTaskId, tasks, onClearSelectedTask]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
@@ -169,8 +181,11 @@ export const TaskManager: React.FC<TaskManagerProps> = ({
                 </span>
               </div>
               <div className="space-y-2">
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight italic leading-tight">{task.title}</h3>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight italic leading-tight group-hover:text-[#6a4782] transition-colors">{task.title}</h3>
                 <p className="text-[10px] font-bold text-slate-500 uppercase italic line-clamp-3 leading-relaxed">{task.description}</p>
+                <div className="pt-2">
+                  <span className="text-[7px] font-black text-[#6a4782] uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all">Click para ver detalles</span>
+                </div>
               </div>
             </div>
 

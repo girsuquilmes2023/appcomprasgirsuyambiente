@@ -19,7 +19,7 @@ import {
   LogOut, ShieldCheck, Wallet, Settings, Shirt, Building2, ListTree
 } from 'lucide-react';
 
-const SESSION_VERSION = '2.1'; 
+const SESSION_VERSION = '2.2'; 
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(() => {
@@ -34,6 +34,7 @@ const App: React.FC = () => {
   });
   
   const [view, setView] = useState<ViewState>('DASHBOARD');
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isBooting, setIsBooting] = useState(true);
   const [isCloudReady, setIsCloudReady] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -86,7 +87,7 @@ const App: React.FC = () => {
   }, [providers]);
 
   const persistState = useCallback(async (forceCloud: boolean = false) => {
-    if (!isCloudReady && !forceCloud) return;
+    if (isBooting) return;
     setIsSyncing(true);
     const fullState: FullAppState = { items, categories, programs, budget, vehicles, maintenanceRecords, providers, contracts, tasks, staff, handouts, orders, serviceRecords, fuelLogs };
     try {
@@ -102,13 +103,14 @@ const App: React.FC = () => {
       localStorage.setItem('girsu_handouts', JSON.stringify(handouts));
       localStorage.setItem('girsu_providers', JSON.stringify(providers));
       localStorage.setItem('girsu_network_config', JSON.stringify(networkConfig));
-      if (networkConfig.googleSheetUrl && isCloudReady) {
+      
+      if (networkConfig.googleSheetUrl && (isCloudReady || forceCloud)) {
          await syncWithGoogleSheets(networkConfig.googleSheetUrl, fullState);
          setCloudStatus('SYNCED');
       }
     } catch (e) { setCloudStatus('ERROR'); }
     finally { setTimeout(() => setIsSyncing(false), 500); }
-  }, [items, categories, budget, providers, contracts, orders, staff, handouts, tasks, networkConfig, isCloudReady, vehicles, maintenanceRecords, serviceRecords, fuelLogs, programs]);
+  }, [items, categories, budget, providers, contracts, orders, staff, handouts, tasks, networkConfig, isCloudReady, vehicles, maintenanceRecords, serviceRecords, fuelLogs, programs, isBooting]);
 
   useEffect(() => {
     const timer = setTimeout(() => { if (!isBooting) persistState(); }, 1500);
@@ -263,11 +265,35 @@ const App: React.FC = () => {
       <main className="flex-1 p-4 md:p-10 lg:p-12 overflow-y-auto w-full">
         <div className="max-w-7xl mx-auto flex-1 w-full relative min-h-full flex flex-col">
           <div className="flex-1">
-            {view === 'DASHBOARD' && <Dashboard items={items} categories={categories} budget={budget} tasks={tasks} orders={orders} providers={providers} user={user} onNavigate={handleNavigate} />}
+            {view === 'DASHBOARD' && <Dashboard 
+              items={items} 
+              categories={categories} 
+              budget={budget} 
+              tasks={tasks} 
+              orders={orders} 
+              providers={providers} 
+              staff={staff}
+              user={user} 
+              onNavigate={(v) => {
+                handleNavigate(v);
+              }} 
+              onSelectTask={(taskId) => {
+                setSelectedTaskId(taskId);
+                handleNavigate('TASKS');
+              }}
+            />}
             {view === 'INVENTORY' && <InventoryManager items={items} categories={categories} user={user} onAddItem={addItem} onUpdateItem={updateItem} onDeleteItem={deleteItem} />}
             {view === 'ORDERS' && <OrderManager orders={orders} providers={providers} items={items} categories={categories} user={user} onAddOrder={addOrder} onUpdateOrder={updateOrder} onDeleteOrder={deleteOrder} />}
             {view === 'FLEET' && <FleetManager vehicles={vehicles} maintenance={maintenanceRecords} fuelLogs={fuelLogs} user={user} onAddVehicle={addVehicle} onUpdateVehicle={updateVehicle} onDeleteVehicle={deleteVehicle} onAddMaintenance={addMaintenance} onAddFuel={addFuel} />}
-            {view === 'TASKS' && <TaskManager tasks={tasks} user={user} onAddTask={addTask} onUpdateTask={updateTask} onDeleteTask={deleteTask} />}
+            {view === 'TASKS' && <TaskManager 
+              tasks={tasks} 
+              user={user} 
+              onAddTask={addTask} 
+              onUpdateTask={updateTask} 
+              onDeleteTask={deleteTask} 
+              initialSelectedTaskId={selectedTaskId}
+              onClearSelectedTask={() => setSelectedTaskId(null)}
+            />}
             {view === 'PROVIDERS' && <ProviderManager providers={providers} user={user} onAddProvider={addProvider} onUpdateProvider={updateProvider} onDeleteProvider={deleteProvider} />}
             {view === 'BUDGET' && <BudgetControl budget={budget} categories={categories} orders={orders} user={user!} onNavigate={handleNavigate} />}
             {view === 'CATEGORIES_MGMT' && <CategoryManager categories={categories} programs={programs} user={user!} onUpdateCategories={updateCategories} />}

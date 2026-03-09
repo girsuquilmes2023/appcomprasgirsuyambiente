@@ -16,10 +16,11 @@ interface DashboardProps {
   staff?: Staff[];
   user: User;
   onNavigate: (view: ViewState) => void; 
+  onSelectTask?: (taskId: string) => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ 
-  items, categories, budget, tasks = [], orders = [], providers = [], staff = [], onNavigate
+  items, categories, budget, tasks = [], orders = [], providers = [], staff = [], onNavigate, onSelectTask
 }) => {
   const formatCurrency = (val: number) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
 
@@ -198,7 +199,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex items-center gap-4 mb-6">
                 <div className="bg-[#6a4782] p-3 rounded-2xl text-white shadow-lg"><Activity size={24}/></div>
                 <div>
-                    <h2 className="text-xl font-black text-indigo-900 uppercase tracking-tighter leading-none italic">Misiones Críticas</h2>
+                    <h2 className="text-xl font-black text-indigo-900 uppercase tracking-tighter leading-none italic">Misiones Activas</h2>
                     <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mt-1 italic">Seguimiento de tareas pendientes y agentes asignados</p>
                 </div>
             </div>
@@ -212,7 +213,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                             </p>
                             <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5 truncate">{task.description}</p>
                         </div>
-                        <button onClick={() => onNavigate('TASKS')} className="p-2 text-indigo-400 hover:text-[#6a4782] transition-colors">
+                        <button 
+                            onClick={() => onSelectTask ? onSelectTask(task.id) : onNavigate('TASKS')} 
+                            className="p-2 text-indigo-400 hover:text-[#6a4782] transition-colors"
+                        >
                             <ArrowRight size={20}/>
                         </button>
                     </div>
