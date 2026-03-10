@@ -53,7 +53,21 @@ const App: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>(() => safeParse('girsu_categories', CATEGORIES));
   const [items, setItems] = useState<Item[]>(() => safeParse('girsu_items', INITIAL_ITEMS_MOCK));
   const [budget, setBudget] = useState<Budget>(() => safeParse('girsu_budget', INITIAL_BUDGET));
-  const [providers, setProviders] = useState<Provider[]>(() => safeParse('girsu_providers', []));
+  const [providers, setProviders] = useState<Provider[]>(() => {
+    const saved = safeParse('girsu_providers', []);
+    if (saved.length === 0) {
+      return [{
+        id: 'prov-default',
+        name: 'PROVEEDOR A DEFINIR',
+        cuit: '00-00000000-0',
+        email: '',
+        phone: '',
+        address: '',
+        category: 'Varios'
+      }];
+    }
+    return saved;
+  });
   const [contracts, setContracts] = useState<Contract[]>(() => safeParse('girsu_contracts', INITIAL_CONTRACTS_MOCK));
   const [orders, setOrders] = useState<PurchaseOrder[]>(() => safeParse('girsu_orders', []));
   const [tasks, setTasks] = useState<Task[]>(() => safeParse('girsu_tasks', []));
@@ -271,23 +285,23 @@ const App: React.FC = () => {
           ].map(btn => (
             <button key={btn.id} onClick={() => handleNavigate(btn.id as ViewState)} className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all ${view === btn.id ? 'bg-[#6a4782]/10 text-[#6a4782] font-black' : 'text-slate-400 hover:bg-slate-50'}`}>
               <div className="flex items-center gap-4">
-                {btn.icon} <span className="text-[10px] uppercase tracking-widest">{btn.label}</span>
+                {btn.icon} <span className="text-xs uppercase tracking-widest">{btn.label}</span>
               </div>
               {btn.badge !== undefined && btn.badge > 0 && (
-                  <span className="bg-orange-600 text-white text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center animate-pulse">{btn.badge}</span>
+                  <span className="bg-orange-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center animate-pulse">{btn.badge}</span>
               )}
             </button>
           ))}
         </nav>
         <div className="p-6 border-t border-slate-50 space-y-4">
-          <button onClick={() => handleNavigate('NETWORK')} className="w-full flex items-center gap-4 px-5 py-2 rounded-xl text-slate-400 hover:bg-slate-50 transition-all font-black uppercase text-[9px] tracking-widest">
+          <button onClick={() => handleNavigate('NETWORK')} className="w-full flex items-center gap-4 px-5 py-2 rounded-xl text-slate-400 hover:bg-slate-50 transition-all font-black uppercase text-xs tracking-widest">
             <Settings size={16}/> Configuración
           </button>
-          <button onClick={handleLogout} className="w-full flex items-center gap-4 px-5 py-2 rounded-xl text-red-400 hover:bg-red-50 transition-all font-black uppercase text-[9px] tracking-widest">
+          <button onClick={handleLogout} className="w-full flex items-center gap-4 px-5 py-2 rounded-xl text-red-400 hover:bg-red-50 transition-all font-black uppercase text-xs tracking-widest">
             <LogOut size={16}/> Salir
           </button>
           <div className="pt-2 text-center">
-            <p className="text-[8px] font-black uppercase tracking-[0.4em] text-slate-300">PINI COMPANY ®</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300">PINI COMPANY ®</p>
           </div>
         </div>
       </aside>
@@ -298,13 +312,13 @@ const App: React.FC = () => {
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
             <div className="flex items-center gap-3">
               <div className={`w-2 h-2 rounded-full ${cloudStatus === 'SYNCED' ? 'bg-green-500 animate-pulse' : cloudStatus === 'ERROR' ? 'bg-red-500' : 'bg-slate-300'}`} />
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+              <span className="text-xs font-black uppercase tracking-widest text-slate-500">
                 {cloudStatus === 'SYNCED' ? 'Nube Sincronizada' : cloudStatus === 'ERROR' ? 'Error de Conexión' : 'Modo Local'}
               </span>
             </div>
             <div className="flex items-center gap-4">
               {isSyncing && (
-                <div className="flex items-center gap-2 text-blue-600 text-[9px] font-black uppercase tracking-widest">
+                <div className="flex items-center gap-2 text-blue-600 text-xs font-black uppercase tracking-widest">
                   <Activity size={12} className="animate-spin" /> Guardando...
                 </div>
               )}
