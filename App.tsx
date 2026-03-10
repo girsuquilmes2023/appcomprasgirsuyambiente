@@ -64,6 +64,7 @@ const App: React.FC = () => {
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>(() => safeParse('girsu_maintenance', []));
   const [serviceRecords] = useState<ServiceRecord[]>(() => safeParse('girsu_services', []));
   
+  const [manualApiKey, setManualApiKey] = useState(() => localStorage.getItem('girsu_manual_api_key') || '');
   const [networkConfig, setNetworkConfig] = useState<NetworkConfig>(() => {
     const saved = localStorage.getItem('girsu_network_config');
     const envUrl = process.env.GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbyZHV6O570L2mRviVp3cxiiH3NLER4Y-Z4J9w3LcVtEbObPG53e-gnwyxQyIou_ssk7/exec';
@@ -243,9 +244,9 @@ const App: React.FC = () => {
   const updateNetworkConfig = (cfg: NetworkConfig) => setNetworkConfig(cfg);
 
   const hasApiKey = useMemo(() => {
-    const key = process.env.GEMINI_API_KEY;
-    return !!key && key.length > 5;
-  }, []);
+    const key = manualApiKey || process.env.GEMINI_API_KEY || process.env.API_KEY;
+    return !!key && key.length > 0;
+  }, [manualApiKey]);
 
   if (!user) return <Login onLogin={(u) => { setUser(u); localStorage.setItem('girsu_auth_user', JSON.stringify(u)); }} />;
   if (isBooting) return <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-10 text-white font-sans italic">Iniciando Protocolos de Seguridad...</div>;
@@ -302,11 +303,6 @@ const App: React.FC = () => {
               </span>
             </div>
             <div className="flex items-center gap-4">
-              {!hasApiKey && (
-                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-100 text-[9px] font-black uppercase tracking-tighter">
-                  <AlertTriangle size={12} /> IA Desactivada (Falta Key en Configuración)
-                </div>
-              )}
               {isSyncing && (
                 <div className="flex items-center gap-2 text-blue-600 text-[9px] font-black uppercase tracking-widest">
                   <Activity size={12} className="animate-spin" /> Guardando...
@@ -334,7 +330,7 @@ const App: React.FC = () => {
               }}
             />}
             {view === 'INVENTORY' && <InventoryManager items={items} categories={categories} user={user} onAddItem={addItem} onUpdateItem={updateItem} onDeleteItem={deleteItem} />}
-            {view === 'ORDERS' && <OrderManager orders={orders} providers={providers} items={items} categories={categories} user={user} onAddOrder={addOrder} onUpdateOrder={updateOrder} onDeleteOrder={deleteOrder} />}
+            {view === 'ORDERS' && <OrderManager orders={orders} providers={providers} items={items} categories={categories} user={user} manualApiKey={manualApiKey} onAddOrder={addOrder} onUpdateOrder={updateOrder} onDeleteOrder={deleteOrder} />}
             {view === 'FLEET' && <FleetManager vehicles={vehicles} maintenance={maintenanceRecords} fuelLogs={fuelLogs} user={user} onAddVehicle={addVehicle} onUpdateVehicle={updateVehicle} onDeleteVehicle={deleteVehicle} onAddMaintenance={addMaintenance} onAddFuel={addFuel} />}
             {view === 'TASKS' && <TaskManager 
               tasks={tasks} 
@@ -351,6 +347,11 @@ const App: React.FC = () => {
             {view === 'NETWORK' && <NetworkSettings 
               config={networkConfig} 
               user={user} 
+              manualApiKey={manualApiKey}
+              onUpdateManualApiKey={(key) => {
+                setManualApiKey(key);
+                localStorage.setItem('girsu_manual_api_key', key);
+              }}
               onUpdateConfig={updateNetworkConfig} 
               onSyncNow={() => persistState(true)} 
               isSyncing={isSyncing}

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { NetworkConfig, User } from '../types';
-import { Settings, Globe, Database, RefreshCw, Save, ShieldCheck, AlertTriangle, CheckCircle2, Link, Download, Upload } from 'lucide-react';
+import { Settings, Globe, Database, RefreshCw, Save, ShieldCheck, AlertTriangle, CheckCircle2, Link, Download, Upload, Activity } from 'lucide-react';
 
 interface NetworkSettingsProps {
   config: NetworkConfig;
   user: User;
+  manualApiKey: string;
+  onUpdateManualApiKey: (key: string) => void;
   onUpdateConfig: (config: NetworkConfig) => void;
   onSyncNow: () => Promise<void>;
   isSyncing: boolean;
@@ -13,11 +15,43 @@ interface NetworkSettingsProps {
 }
 
 export const NetworkSettings: React.FC<NetworkSettingsProps> = ({ 
-  config, user, onUpdateConfig, onSyncNow, isSyncing, onExportData, onRestoreData
+  config, user, manualApiKey, onUpdateManualApiKey, onUpdateConfig, onSyncNow, isSyncing, onExportData, onRestoreData
 }) => {
   const [url, setUrl] = useState(config.googleSheetUrl);
   const [autoSync, setAutoSync] = useState(config.autoSync);
-  const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' | null }>({ text: '', type: null });
+  const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' | 'info' | null }>({ text: '', type: null });
+  const [isTestingKey, setIsTestingKey] = useState(false);
+
+  const handleTestKey = async () => {
+    const keyToTest = manualApiKey || config.googleSheetUrl; // Just a placeholder check if we don't have a key
+    if (!manualApiKey) {
+      setMessage({ text: 'POR FAVOR, INGRESE UNA CLAVE PRIMERO', type: 'error' });
+      return;
+    }
+
+    setIsTestingKey(true);
+    setMessage({ text: 'PROBANDO CONEXIÓN CON GEMINI...', type: 'info' });
+
+    try {
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey: manualApiKey });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: "Hola, responde solo con la palabra 'OK' si recibes esto."
+      });
+
+      if (response.text?.includes('OK')) {
+        setMessage({ text: '¡CONEXIÓN EXITOSA! LA CLAVE ES VÁLIDA', type: 'success' });
+      } else {
+        setMessage({ text: 'LA IA RESPONDIÓ PERO NO DE LA FORMA ESPERADA', type: 'error' });
+      }
+    } catch (err: any) {
+      console.error(err);
+      setMessage({ text: `ERROR: ${err.message || 'CLAVE INVÁLIDA O PROBLEMA DE RED'}`, type: 'error' });
+    } finally {
+      setIsTestingKey(false);
+    }
+  };
 
   const handleSave = () => {
     onUpdateConfig({
@@ -113,7 +147,11 @@ export const NetworkSettings: React.FC<NetworkSettingsProps> = ({
             </div>
 
             {message.text && (
-              <div className={`p-4 rounded-2xl text-[9px] font-black text-center uppercase tracking-widest animate-pulse ${message.type === 'success' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
+              <div className={`p-4 rounded-2xl text-[9px] font-black text-center uppercase tracking-widest animate-pulse ${
+                message.type === 'success' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
+                message.type === 'info' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                'bg-red-50 text-red-600 border border-red-100'
+              }`}>
                 {message.text}
               </div>
             )}
@@ -132,6 +170,46 @@ export const NetworkSettings: React.FC<NetworkSettingsProps> = ({
               >
                 <RefreshCw size={18} className={isSyncing ? 'animate-spin' : ''}/> {isSyncing ? 'Sincronizando...' : 'Sincronizar Ahora'}
               </button>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-soft space-y-8">
+            <div className="flex items-center gap-4 mb-2">
+              <div className="p-3 bg-indigo-50 rounded-2xl text-[#6a4782]"><Settings size={24}/></div>
+              <div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight italic">Inteligencia Artificial</h3>
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Configuración de Gemini AI</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 italic">Clave de API Gemini (Manual)</label>
+                <div className="relative">
+                  <ShieldCheck className="absolute left-5 top-5 text-slate-300" size={18}/>
+                  <input 
+                    type="password" 
+                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-5 pl-14 pr-4 text-xs font-bold outline-none focus:border-[#6a4782] focus:bg-white transition-all italic"
+                    placeholder="Pegue su clave aquí si el modo automático falla..."
+                    value={manualApiKey}
+                    onChange={e => onUpdateManualApiKey(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-start gap-2 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                  <Globe size={14} className="text-blue-500 mt-0.5 shrink-0"/>
+                  <p className="text-[8px] font-bold text-blue-700 uppercase tracking-widest leading-relaxed">
+                    Si el panel de 'Secrets' de la plataforma le impide escribir, puede obtener una clave en <a href="https://aistudio.google.com/app/apikey" target="_blank" className="underline">aistudio.google.com</a> y pegarla aquí. Esta clave se guardará localmente en su navegador.
+                  </p>
+                </div>
+                <button 
+                  onClick={handleTestKey}
+                  disabled={isTestingKey || !manualApiKey}
+                  className="w-full mt-2 py-4 bg-white border border-indigo-200 text-[#6a4782] rounded-2xl font-black uppercase text-[9px] tracking-widest hover:bg-indigo-50 transition-all italic flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isTestingKey ? <RefreshCw size={14} className="animate-spin"/> : <Activity size={14}/>}
+                  {isTestingKey ? 'Verificando...' : 'Probar Conexión con Gemini'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

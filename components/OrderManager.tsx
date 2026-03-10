@@ -11,13 +11,14 @@ interface OrderManagerProps {
   items: Item[];
   categories: Category[];
   user: User;
+  manualApiKey?: string;
   onAddOrder: (order: PurchaseOrder) => void;
   onUpdateOrder: (order: PurchaseOrder) => void;
   onDeleteOrder: (id: string) => void;
 }
 
 export const OrderManager: React.FC<OrderManagerProps> = ({ 
-  orders, providers, items, categories, user, onAddOrder, onUpdateOrder, onDeleteOrder 
+  orders, providers, items, categories, user, manualApiKey, onAddOrder, onUpdateOrder, onDeleteOrder 
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -183,9 +184,9 @@ export const OrderManager: React.FC<OrderManagerProps> = ({
         reader.readAsDataURL(file);
       });
 
-      const apiKey = process.env.GEMINI_API_KEY;
+      const apiKey = manualApiKey || process.env.GEMINI_API_KEY || process.env.API_KEY;
       if (!apiKey) {
-        throw new Error("La clave de API de Gemini no está configurada.");
+        throw new Error("No se detectó una clave de API. Por favor, configurá GEMINI_API_KEY en el menú Secrets.");
       }
 
       const ai = new GoogleGenAI({ apiKey });
