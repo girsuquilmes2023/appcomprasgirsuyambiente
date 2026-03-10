@@ -18,9 +18,9 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 1000,
     },
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
-      'process.env.GOOGLE_SHEET_URL': JSON.stringify(env.VITE_GOOGLE_SHEET_URL || env.GOOGLE_SHEET_URL || '')
+      'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY || ''),
+      'process.env.API_KEY': JSON.stringify(process.env.API_KEY || ''),
+      'process.env.GOOGLE_SHEET_URL': JSON.stringify(process.env.GOOGLE_SHEET_URL || '')
     },
     server: {
       port: 3000,

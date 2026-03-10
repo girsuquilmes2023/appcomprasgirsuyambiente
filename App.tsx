@@ -242,6 +242,11 @@ const App: React.FC = () => {
 
   const updateNetworkConfig = (cfg: NetworkConfig) => setNetworkConfig(cfg);
 
+  const hasApiKey = useMemo(() => {
+    const key = process.env.GEMINI_API_KEY;
+    return !!key && key.length > 5;
+  }, []);
+
   if (!user) return <Login onLogin={(u) => { setUser(u); localStorage.setItem('girsu_auth_user', JSON.stringify(u)); }} />;
   if (isBooting) return <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-10 text-white font-sans italic">Iniciando Protocolos de Seguridad...</div>;
 
@@ -297,9 +302,9 @@ const App: React.FC = () => {
               </span>
             </div>
             <div className="flex items-center gap-4">
-              {(!process.env.GEMINI_API_KEY) && (
+              {!hasApiKey && (
                 <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-100 text-[9px] font-black uppercase tracking-tighter">
-                  <AlertTriangle size={12} /> IA Desactivada (Falta Key)
+                  <AlertTriangle size={12} /> IA Desactivada (Falta Key en Configuración)
                 </div>
               )}
               {isSyncing && (
