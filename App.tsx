@@ -16,7 +16,7 @@ import { NetworkSettings } from './components/NetworkSettings';
 
 import { 
   Activity, ShoppingCart, Truck, Package, ListTodo, Users, 
-  LogOut, ShieldCheck, Wallet, Settings, Shirt, Building2, ListTree
+  LogOut, ShieldCheck, Wallet, Settings, Shirt, Building2, ListTree, AlertTriangle
 } from 'lucide-react';
 
 const SESSION_VERSION = '2.2'; 
@@ -66,10 +66,16 @@ const App: React.FC = () => {
   
   const [networkConfig, setNetworkConfig] = useState<NetworkConfig>(() => {
     const saved = localStorage.getItem('girsu_network_config');
-    const envUrl = 'https://script.google.com/macros/s/AKfycbyZHV6O570L2mRviVp3cxiiH3NLER4Y-Z4J9w3LcVtEbObPG53e-gnwyxQyIou_ssk7/exec';
+    const envUrl = process.env.GOOGLE_SHEET_URL || 'https://script.google.com/macros/s/AKfycbyZHV6O570L2mRviVp3cxiiH3NLER4Y-Z4J9w3LcVtEbObPG53e-gnwyxQyIou_ssk7/exec';
+    
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (!parsed.googleSheetUrl) parsed.googleSheetUrl = envUrl;
+      // Update if it's a placeholder or if the env URL changed and it's the same as the old default
+      if (!parsed.googleSheetUrl || 
+          parsed.googleSheetUrl.includes('YOUR_URL') || 
+          (parsed.googleSheetUrl === 'https://script.google.com/macros/s/AKfycbyZHV6O570L2mRviVp3cxiiH3NLER4Y-Z4J9w3LcVtEbObPG53e-gnwyxQyIou_ssk7/exec' && envUrl !== parsed.googleSheetUrl)) {
+        parsed.googleSheetUrl = envUrl;
+      }
       return parsed;
     }
     return { serverUrl: '', googleSheetUrl: envUrl, autoSync: true, lastSync: null, isConnected: true };
@@ -120,6 +126,16 @@ const App: React.FC = () => {
   useEffect(() => {
     const boot = async () => {
       const url = networkConfig.googleSheetUrl;
+      
+      // Safety timeout to prevent getting stuck in booting
+      const timeoutId = setTimeout(() => {
+        if (isBooting) {
+          console.warn("Boot timeout reached");
+          setIsBooting(false);
+          setIsCloudReady(true);
+        }
+      }, 5000);
+
       if (url) {
         try {
           const cloudData = await loadFromGoogleSheets(url);
@@ -136,8 +152,16 @@ const App: React.FC = () => {
             setCloudStatus('SYNCED');
           }
           setIsCloudReady(true);
-        } catch (err) { setCloudStatus('ERROR'); setIsCloudReady(true); }
-      } else { setCloudStatus('OFFLINE'); setIsCloudReady(true); }
+        } catch (err) { 
+          console.error("Boot error:", err);
+          setCloudStatus('ERROR'); 
+          setIsCloudReady(true); 
+        }
+      } else { 
+        setCloudStatus('OFFLINE'); 
+        setIsCloudReady(true); 
+      }
+      clearTimeout(timeoutId);
       setIsBooting(false);
     };
     boot();
@@ -264,6 +288,28 @@ const App: React.FC = () => {
 
       <main className="flex-1 p-4 md:p-10 lg:p-12 overflow-y-auto w-full">
         <div className="max-w-7xl mx-auto flex-1 w-full relative min-h-full flex flex-col">
+          {/* Status Bar */}
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className={`w-2 h-2 rounded-full ${cloudStatus === 'SYNCED' ? 'bg-green-500 animate-pulse' : cloudStatus === 'ERROR' ? 'bg-red-500' : 'bg-slate-300'}`} />
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                {cloudStatus === 'SYNCED' ? 'Nube Sincronizada' : cloudStatus === 'ERROR' ? 'Error de Conexión' : 'Modo Local'}
+              </span>
+            </div>
+            <div className="flex items-center gap-4">
+              {(!process.env.GEMINI_API_KEY) && (
+                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-100 text-[9px] font-black uppercase tracking-tighter">
+                  <AlertTriangle size={12} /> IA Desactivada (Falta Key)
+                </div>
+              )}
+              {isSyncing && (
+                <div className="flex items-center gap-2 text-blue-600 text-[9px] font-black uppercase tracking-widest">
+                  <Activity size={12} className="animate-spin" /> Guardando...
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="flex-1">
             {view === 'DASHBOARD' && <Dashboard 
               items={items} 
